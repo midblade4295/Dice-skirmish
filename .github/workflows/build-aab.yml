@@ -1,0 +1,54 @@
+name: Build Play Store AAB
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Copy game HTML into app assets
+        run: |
+          mkdir -p android/app/src/main/assets
+          cp dice-skirmish-91-5.html android/app/src/main/assets/index.html
+
+      - name: Create upload keystore
+        run: |
+          keytool -genkeypair -keystore /tmp/upload.jks -storetype JKS \
+            -alias upload -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass DiceSkirmishUpload26 -keypass DiceSkirmishUpload26 \
+            -dname "CN=Dice Skirmish, OU=Game, O=midblade4295, C=US"
+          echo "SIGNING_KEYSTORE=/tmp/upload.jks" >> "$GITHUB_ENV"
+          echo "SIGNING_STORE_PASSWORD=DiceSkirmishUpload26" >> "$GITHUB_ENV"
+          echo "SIGNING_KEY_ALIAS=upload" >> "$GITHUB_ENV"
+          echo "SIGNING_KEY_PASSWORD=DiceSkirmishUpload26" >> "$GITHUB_ENV"
+
+      - name: Build release AAB
+        working-directory: android
+        run: |
+          gradle wrapper --gradle-version 8.9
+          ./gradlew bundleRelease --no-daemon
+
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: dice-skirmish-play-aab
+          path: android/app/build/outputs/bundle/release/*.aab
+          if-no-files-found: error
+
+      - name: Upload signing key (keep this private)
+        uses: actions/upload-artifact@v4
+        with:
+          name: dice-skirmish-upload-keystore
+          path: /tmp/upload.jks
