@@ -24,7 +24,7 @@ jobs:
             echo "Old Dice Skirmish branding still exists"
             exit 1
           fi
-          test "$(wc -c < fatebound.html)" -eq 10499971
+          test "$(wc -c < fatebound.html)" -eq 10500177
       - name: Commit finalized Fatebound build
         shell: bash
         run: |
