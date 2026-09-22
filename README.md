@@ -1,6 +1,6 @@
 # Fatebound
 
-Dice arena game plus an Android app bundle for Google Play.
+Fatebound arena game plus an Android app bundle for Google Play.
 
 - Play Store name: **Fatebound**
 - Package id: `com.fatebound.game`
