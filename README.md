@@ -1,21 +1,19 @@
-# Dice Skirmish
+# Fatebound
 
-HTML game plus Android app bundle for Google Play.
+Dice arena game (formerly Dice Skirmish) plus an Android app bundle for Google Play.
 
-You do **not** need Android Studio.
+Play Store name: **Fatebound**  
+Package id (do not change after first upload): `com.diceskirmish.game`
 
 ## Get an `.aab` for Play Console
 
 1. Open https://github.com/midblade4295/Dice-skirmish/actions
 2. Click **Build Play Store AAB**
-3. Click **Run workflow** → **Run workflow**
-4. When it finishes, open the run → **Artifacts**
-5. Download **dice-skirmish-play-aab** — that zip contains `app-release.aab`
-6. In Google Play Console → your app → **Production** or **Testing** → **Create release** → upload the `.aab`
+3. Click **Run workflow**
+4. Download artifact **dice-skirmish-play-aab** and unzip `app-release.aab`
+5. Upload that file in Play Console. Create the store listing as **Fatebound**.
 
-Also download **dice-skirmish-upload-keystore** and keep it. Play needs the same key for every future update.
-
-Package name: `com.diceskirmish.game`
+Also save **dice-skirmish-upload-keystore** from the same run.
 
 ## Web game
 
