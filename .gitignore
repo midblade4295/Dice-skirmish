@@ -1,0 +1,17 @@
+.gradle/
+.idea/
+*.iml
+local.properties
+build/
+app/build/
+android/.gradle/
+android/.idea/
+android/build/
+android/app/build/
+android/local.properties
+android/app/src/main/assets/index.html
+.DS_Store
+*.apk
+*.aab
+*.keystore
+*.jks

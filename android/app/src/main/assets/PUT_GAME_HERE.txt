@@ -1,0 +1,4 @@
+Copy dice-skirmish-91-5.html to this folder and rename it index.html
+
+Path:
+  android/app/src/main/assets/index.html
