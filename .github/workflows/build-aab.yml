@@ -35,20 +35,22 @@ jobs:
           done
           if [ -n "$SM" ]; then
             yes | "$SM" --licenses >/dev/null 2>&1 || true
-            "$SM" "platforms;android-35" "build-tools;35.0.0" "platform-tools" || true
+            "$SM" "platforms;android-36" "build-tools;36.0.0" "platform-tools" || true
           fi
 
       - name: Copy game and Legionary client into assets
         run: |
           mkdir -p android/app/src/main/assets
           cp fatebound.html android/app/src/main/assets/index.html
-          cp legionary-client.js android/app/src/main/assets/legionary-client.js
+          if [ -f legionary-client.js ]; then
+            cp legionary-client.js android/app/src/main/assets/legionary-client.js
+          fi
           python3 - <<'PY'
           from pathlib import Path
           p = Path("android/app/src/main/assets/index.html")
           t = p.read_text(encoding="utf-8", errors="replace")
           tag = '<script src="legionary-client.js"></script>\n'
-          if "legionary-client.js" not in t:
+          if Path("android/app/src/main/assets/legionary-client.js").exists() and "legionary-client.js" not in t:
               t = t.replace("</body>", tag + "</body>", 1)
               p.write_text(t, encoding="utf-8")
           PY
