@@ -27,12 +27,12 @@ jobs:
         run: |
           keytool -genkeypair -keystore /tmp/upload.jks -storetype JKS \
             -alias upload -keyalg RSA -keysize 2048 -validity 10000 \
-            -storepass DiceSkirmishUpload26 -keypass DiceSkirmishUpload26 \
-            -dname "CN=Dice Skirmish, OU=Game, O=midblade4295, C=US"
+            -storepass FateboundUpload26 -keypass FateboundUpload26 \
+            -dname "CN=Fatebound, OU=Game, O=midblade4295, C=US"
           echo "SIGNING_KEYSTORE=/tmp/upload.jks" >> "$GITHUB_ENV"
-          echo "SIGNING_STORE_PASSWORD=DiceSkirmishUpload26" >> "$GITHUB_ENV"
+          echo "SIGNING_STORE_PASSWORD=FateboundUpload26" >> "$GITHUB_ENV"
           echo "SIGNING_KEY_ALIAS=upload" >> "$GITHUB_ENV"
-          echo "SIGNING_KEY_PASSWORD=DiceSkirmishUpload26" >> "$GITHUB_ENV"
+          echo "SIGNING_KEY_PASSWORD=FateboundUpload26" >> "$GITHUB_ENV"
 
       - name: Build release AAB
         working-directory: android
@@ -43,12 +43,12 @@ jobs:
       - name: Upload AAB
         uses: actions/upload-artifact@v4
         with:
-          name: dice-skirmish-play-aab
+          name: fatebound-play-aab
           path: android/app/build/outputs/bundle/release/*.aab
           if-no-files-found: error
 
       - name: Upload signing key (keep this private)
         uses: actions/upload-artifact@v4
         with:
-          name: dice-skirmish-upload-keystore
+          name: fatebound-upload-keystore
           path: /tmp/upload.jks
