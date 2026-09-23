@@ -1,4 +1,5 @@
 name: Apply battle excitement systems
+# retry after helper syntax fix
 on:
   push:
     branches: [battle-excitement]
