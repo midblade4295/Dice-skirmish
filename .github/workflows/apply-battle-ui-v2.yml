@@ -1,5 +1,5 @@
 name: Apply battle UI v2
-# rerun after exact part07 correction
+# rerun after exact part01 and part07 corrections
 
 on:
   push:
