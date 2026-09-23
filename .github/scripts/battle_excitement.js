@@ -25,7 +25,8 @@ function exState(){
   e.prevLeaders ||= M.towers.map(t=>towerLeader(t));e.suddenTargets ||= [];
   return e;
 }
-function battleActive(){return !!(M&&!M.lobby&&!M.ended&&inWar()&&!M.inBoss);}\nfunction battleVisible(){return battleActive()&&(screen==="battle"||screen==="map");}
+function battleActive(){return !!(M&&!M.lobby&&!M.ended&&inWar()&&!M.inBoss);}
+function battleVisible(){return battleActive()&&(screen==="battle"||screen==="map");}
 function guildName(sd){return sd===0?"BRASS COMPANY":"CRIMSON VOW";}
 function safeEnterTower(ti){
   if(!battleActive()||ti==null||ti<0||ti>=M.towers.length)return;
