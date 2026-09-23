@@ -1,0 +1,126 @@
+name: Tune battle excitement systems
+on:
+  push:
+    branches: [battle-excitement-tuning]
+    paths: [".github/workflows/tune-battle-excitement.yml"]
+permissions:
+  contents: write
+jobs:
+  tune:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - name: Apply tuning
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("fatebound.html")
+          s=p.read_text(encoding="utf-8")
+          def rep(old,new,label):
+              global s
+              n=s.count(old)
+              if n!=1: raise SystemExit(f"{label}: expected 1 match, found {n}")
+              s=s.replace(old,new,1)
+
+          rep(
+          'e.order=null;addMomentum(0,22,"Battle Order complete");gainGold(player,75);\n    bigBanner("ORDER COMPLETE","+75 gold · +22 Momentum");toast("Battle Order complete: +75 gold · Momentum boosted","reward");',
+          'e.order=null;addMomentum(0,18,"Battle Order complete");gainGold(player,30);\n    bigBanner("ORDER COMPLETE","+30 gold · +18 Momentum");toast("Battle Order complete: +30 gold · Momentum boosted","reward");',
+          "order reward")
+
+          rep(
+          '$("orderProgress").textContent=\`${p}/${o.need} · ${secs}s · reward +75 gold / +22 Momentum\`;',
+          '$("orderProgress").textContent=\`${p}/${o.need} · ${secs}s · reward +30 gold / +18 Momentum\`;',
+          "order reward UI")
+
+          rep(
+          'if(typeof callRally==="function"){\n  const coreCallRally=callRally;\n  callRally=function(sd,ti,...rest){const before=M?.ralliesLeft?.[sd];const out=coreCallRally(sd,ti,...rest);if(battleActive()&&Number.isFinite(before)&&M.ralliesLeft[sd]<before)addMomentum(sd,8,"rally called");return out;};\n}',
+          'if(typeof callRally==="function"){\n  const coreCallRally=callRally;\n  callRally=function(sd,ti,...rest){return coreCallRally(sd,ti,...rest);};\n}',
+          "rally call momentum")
+
+          anchor='function paintOrder(now){\n'
+          insert='''function tickRallySuccess(){
+  const e=exState();if(!e||!battleActive())return;
+  [0,1].forEach(sd=>{
+    const r=M.rally?.[sd];if(!r||!r.closed||r.excSettled)return;
+    r.excSettled=true;
+    if(towerLeader(M.towers[r.tower])===sd){
+      addMomentum(sd,10,"successful rally");
+      if(sd===0){bigBanner("RALLY HELD",\`Tower ${M.towers[r.tower].name} secured · +10 Momentum\`);showHeroMoment("RALLY SUCCESS",\`Tower ${M.towers[r.tower].name} held\`,player);}
+      else feed(\`Crimson Vow rally succeeds at Tower ${M.towers[r.tower].name}.\`,"flip bad");
+    }
+  });
+}
+function paintOrder(now){
+'''
+          rep(anchor,insert,"rally success insert")
+
+          old='''function paintThreat(now){
+  const box=$("battleAlert");if(!box)return;const a=threat(),e=exState();
+  if(!a){box.hidden=true;return;}box.hidden=false;box.dataset.tower=a.tower;$("alertTitle").textContent=a.title;$("alertText").textContent=a.text;$("alertGo").textContent=a.key.startsWith("d:")?"DEFEND":a.key.startsWith("p:")?"PUSH":"GO";
+  if(e.lastAlertKey!==a.key&&now-(e.lastAlertAt||0)>8000){e.lastAlertKey=a.key;e.lastAlertAt=now;feed(a.title+": "+a.text,a.key.startsWith("d:")?"flip bad":"rally");}
+}'''
+          new='''function paintThreat(now){
+  const box=$("battleAlert");if(!box)return;const a=threat(),e=exState();
+  if(!a){
+    if(Number.isInteger(e.dangerTower)){
+      const t=M.towers[e.dangerTower],tot=Math.max(1,t.dmg[0]+t.dmg[1]),close=Math.abs(t.dmg[0]-t.dmg[1])/tot;
+      if(towerLeader(t)===0&&close>.28&&now-(e.dangerSince||now)>4000){addMomentum(0,10,"clutch defense");bigBanner("DEFENSE HELD",\`Tower ${t.name} stabilized · +10 Momentum\`);feed(\`Tower ${t.name} defense held under pressure.\`,"rally");}
+    }
+    e.dangerTower=null;box.hidden=true;return;
+  }
+  box.hidden=false;box.dataset.tower=a.tower;$("alertTitle").textContent=a.title;$("alertText").textContent=a.text;$("alertGo").textContent=a.key.startsWith("d:")?"DEFEND":a.key.startsWith("p:")?"PUSH":"GO";
+  if(a.key.startsWith("d:")&&e.dangerTower!==a.tower){e.dangerTower=a.tower;e.dangerSince=now;}else if(!a.key.startsWith("d:"))e.dangerTower=null;
+  if(e.lastAlertKey!==a.key&&now-(e.lastAlertAt||0)>8000){e.lastAlertKey=a.key;e.lastAlertAt=now;feed(a.title+": "+a.text,a.key.startsWith("d:")?"flip bad":"rally");}
+}'''
+          rep(old,new,"clutch defense")
+
+          old='''function paintPhase(now){
+  const active=battleActive(),visible=battleVisible(),root=$("battleExcitement");if(root)root.hidden=!visible;
+  const final=active&&typeof warBattle==="function"&&warBattle()&&!(typeof warOvertime==="function"&&warOvertime());
+  const sudden=active&&typeof warOvertime==="function"&&warOvertime();const left=active?M.endAt-now:999999;
+  document.body.classList.toggle("final-assault",!!final&&visible);document.body.classList.toggle("final-thirty",!!final&&left<=30000&&visible);document.body.classList.toggle("sudden-death",!!sudden&&visible);
+  const e=exState();if(active&&final&&left<=30000&&!e.finalThirtyShown){e.finalThirtyShown=true;bigBanner("30 SECONDS","No side objectives · every tower matters");SFX.horn?.();feed("Final 30 seconds — focus on tower control.","rally");}
+}'''
+          new='''function paintPhase(now){
+  const active=battleActive(),visible=battleVisible(),root=$("battleExcitement");if(root)root.hidden=!visible;
+  const final=active&&typeof warBattle==="function"&&warBattle()&&!(typeof warOvertime==="function"&&warOvertime());
+  const sudden=active&&typeof warOvertime==="function"&&warOvertime();const left=active?M.endAt-now:999999;
+  document.body.classList.toggle("final-assault",!!final&&visible);document.body.classList.toggle("final-thirty",!!final&&left<=30000&&visible);document.body.classList.toggle("sudden-death",!!sudden&&visible);
+  const e=exState();
+  const phase=sudden?"sudden":final?"final":"battle";
+  if(active&&e.lastPhase!==phase){e.lastPhase=phase;if(phase==="final")SFX.rally?.();if(phase==="sudden")SFX.tension?.();}
+  if(active&&final&&left<=30000&&!e.finalThirtyShown){e.finalThirtyShown=true;bigBanner("30 SECONDS","No side objectives · every tower matters");SFX.tension?.();feed("Final 30 seconds — focus on tower control.","rally");}
+}'''
+          rep(old,new,"phase audio")
+
+          rep(
+          'ensureUi();if(M){exState();tickOrders(now);paintPhase(now);if(battleActive()){paintMomentum(now);paintOrder(now);paintThreat(now);paintRival(now);paintSuddenTargets();}}',
+          'ensureUi();if(M){exState();tickOrders(now);tickRallySuccess();paintPhase(now);if(battleActive()){paintMomentum(now);paintOrder(now);paintThreat(now);paintRival(now);paintSuddenTargets();}}',
+          "rally success tick")
+
+          p.write_text(s,encoding="utf-8")
+          print("tuned",p.stat().st_size)
+          PY
+      - name: Validate
+        shell: bash
+        run: |
+          node <<'JS'
+          const fs=require('fs'),vm=require('vm');
+          const html=fs.readFileSync('fatebound.html','utf8');
+          const re=/<script([^>]*)>([\s\S]*?)<\/script>/gi;
+          let m,i=0;
+          while((m=re.exec(html))){i++;const a=m[1]||'',c=m[2]||'';if(/type\s*=\s*["']module["']/i.test(a)||!c.trim())continue;new vm.Script(c,{filename:'inline-'+i+'.js'});}
+          console.log("JS parse OK");
+          JS
+          git diff --check
+      - name: Commit
+        shell: bash
+        run: |
+          git config user.name "ChatGPT"
+          git config user.email "midblade4295@users.noreply.github.com"
+          git rm .github/workflows/tune-battle-excitement.yml
+          git add fatebound.html
+          git commit -m "Tune battle excitement rewards and counterplay"
+          git push origin HEAD:battle-excitement-tuning
