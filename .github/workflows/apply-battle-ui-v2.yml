@@ -1,5 +1,5 @@
 name: Apply battle UI v2
-# rerun after complete verified patch set
+# rerun after exact part07 correction
 
 on:
   push:
