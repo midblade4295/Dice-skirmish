@@ -1,0 +1,51 @@
+name: Inspect battle systems
+on:
+  push:
+    branches: [battle-excitement]
+    paths: [".github/workflows/inspect-battle.yml"]
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Print relevant Fatebound sections
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("fatebound.html")
+          s=p.read_text(encoding="utf-8")
+          needles=[
+            "function eventsTick",
+            "function botTick",
+            "function enterTower",
+            "function towerLeader",
+            "function bigBanner",
+            "function feed(",
+            "function updateHud",
+            "function finishMatch",
+            "function warTick",
+            "function renderWarPanel",
+            "function newMatch",
+            "function attackPower",
+            "SAVE.rival",
+            "player.rival",
+            "id=\"end\"",
+            "id=\"warPanel\"",
+            "id=\"battle\"",
+            ".big",
+            ".banner",
+          ]
+          lines=s.splitlines()
+          for needle in needles:
+            print("\n===== NEEDLE:",needle,"=====")
+            hits=[i for i,l in enumerate(lines) if needle in l]
+            if not hits:
+              print("NO HIT")
+              continue
+            for i in hits[:3]:
+              a=max(0,i-25); b=min(len(lines),i+80)
+              print(f"--- lines {a+1}-{b} ---")
+              for j in range(a,b):
+                print(f"{j+1:05d}: {lines[j]}")
+          PY
