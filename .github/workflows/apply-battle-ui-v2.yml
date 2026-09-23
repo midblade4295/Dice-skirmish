@@ -21,6 +21,7 @@ jobs:
       - name: Assemble and apply redesign
         shell: bash
         run: |
+          sha256sum .github/patchparts/battle-ui-v2-*.b64
           cat .github/patchparts/battle-ui-v2-*.b64 > /tmp/battle-ui-v2.b64
           test "$(wc -c < /tmp/battle-ui-v2.b64)" -eq 47304
           echo "842a66d68b2e7240f56b7a68dcd8aefce68b0aa3f393d44199acc66e22d038b9  /tmp/battle-ui-v2.b64" | sha256sum -c -
