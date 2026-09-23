@@ -1,0 +1,51 @@
+name: Inspect redesign targets
+on:
+  push:
+    branches: [battle-ui-redesign]
+    paths: [".github/workflows/inspect-redesign-targets.yml"]
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Targeted excerpts
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path("fatebound.html").read_text(encoding="utf-8")
+          lines=s.splitlines()
+          needles=[
+            'id="battle"',
+            'id="warmap"',
+            '<nav',
+            'id="end"',
+            'function showScreen',
+            'function enterTower',
+            'function homeHub',
+            'function renderHub',
+            'function finishMatch',
+            'function ensureUi',
+            'function paintOrder',
+            'function tickBattleExcitement',
+            'function renderBattleExcitement',
+            'function clearBattle',
+            'hubBattleReturn',
+            "document.querySelectorAll('nav button')",
+            "data-tab",
+            "screen='battle'",
+            "screen='map'",
+            "screen='home'",
+          ]
+          seen=set()
+          for needle in needles:
+            hits=[i for i,l in enumerate(lines) if needle in l]
+            print("\n###",needle,"hits",hits[:8])
+            for i in hits[:4]:
+              a=max(0,i-12);b=min(len(lines),i+34)
+              key=(a,b)
+              if key in seen: continue
+              seen.add(key)
+              for j in range(a,b):
+                print(f"{j+1:05d}: {lines[j]}")
+          PY
