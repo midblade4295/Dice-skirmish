@@ -25,7 +25,7 @@ function exState(){
   e.prevLeaders ||= M.towers.map(t=>towerLeader(t));e.suddenTargets ||= [];
   return e;
 }
-function battleActive(){return !!(M&&!M.lobby&&!M.ended&&inWar()&&!M.inBoss);}
+function battleActive(){return !!(M&&!M.lobby&&!M.ended&&inWar()&&!M.inBoss);}\nfunction battleVisible(){return battleActive()&&(screen==="battle"||screen==="map");}
 function guildName(sd){return sd===0?"BRASS COMPANY":"CRIMSON VOW";}
 function safeEnterTower(ti){
   if(!battleActive()||ti==null||ti<0||ti>=M.towers.length)return;
@@ -90,7 +90,7 @@ body.final-assault #clock,body.final-assault #lead{transform:scale(1.08);text-sh
   $("rivalChip").onclick=()=>{const id=exState()?.rivalId,h=id?byId(id):null;if(h)safeEnterTower(heroTower(h));};
 }
 function showHeroMoment(title,sub,h=player){
-  if(!battleActive())return;ensureUi();const e=exState(),now=Date.now();e.heroMomentAt=now;
+  if(!battleVisible())return;ensureUi();const e=exState(),now=Date.now();e.heroMomentAt=now;
   $("heroMomentTitle").textContent=title;$("heroMomentSub").textContent=sub||"";
   try{drawCharPortrait($("heroMomentPortrait"),h?.char||0,h?.weapon||0);}catch(_){}
   const box=$("heroMoment");box.classList.add("show");$("battle")?.classList.add("hero-moment");
@@ -215,10 +215,10 @@ function beginSuddenTargets(){
   bigBanner("NEXT CAPTURE COULD END IT",`Priority towers: ${names}`);feed(`Sudden death targets: Towers ${names}. First guild to take the lead wins.`,"rally");
 }
 function paintPhase(now){
-  const active=battleActive(),root=$("battleExcitement");if(root)root.hidden=!active;
+  const active=battleActive(),visible=battleVisible(),root=$("battleExcitement");if(root)root.hidden=!visible;
   const final=active&&typeof warBattle==="function"&&warBattle()&&!(typeof warOvertime==="function"&&warOvertime());
   const sudden=active&&typeof warOvertime==="function"&&warOvertime();const left=active?M.endAt-now:999999;
-  document.body.classList.toggle("final-assault",!!final);document.body.classList.toggle("final-thirty",!!final&&left<=30000);document.body.classList.toggle("sudden-death",!!sudden);
+  document.body.classList.toggle("final-assault",!!final&&visible);document.body.classList.toggle("final-thirty",!!final&&left<=30000&&visible);document.body.classList.toggle("sudden-death",!!sudden&&visible);
   const e=exState();if(active&&final&&left<=30000&&!e.finalThirtyShown){e.finalThirtyShown=true;bigBanner("30 SECONDS","No side objectives · every tower matters");SFX.horn?.();feed("Final 30 seconds — focus on tower control.","rally");}
 }
 function renderHighlights(){
