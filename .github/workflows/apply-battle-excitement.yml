@@ -1,0 +1,102 @@
+name: Apply battle excitement systems
+on:
+  push:
+    branches: [battle-excitement]
+    paths: [".github/workflows/apply-battle-excitement.yml"]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Inject battle excitement systems
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          html = Path("fatebound.html")
+          helper = Path(".github/scripts/battle_excitement.js")
+          s = html.read_text(encoding="utf-8")
+          js = helper.read_text(encoding="utf-8")
+
+          marker = "__FATEBOUND_BATTLE_EXCITEMENT_V1__"
+          if marker in s:
+              raise SystemExit("battle excitement systems already present")
+          if "</body>" not in s:
+              raise SystemExit("missing </body>")
+
+          block = "\n<script>\n" + js + "\n</script>\n"
+          s = s.replace("</body>", block + "</body>", 1)
+          s = s.replace(
+              '<meta name="fatebound-build" content="90-balanced">',
+              '<meta name="fatebound-build" content="91-battle-excitement">',
+              1
+          )
+          html.write_text(s, encoding="utf-8")
+
+          required = [
+              "__FATEBOUND_BATTLE_EXCITEMENT_V1__",
+              "BATTLE ORDER",
+              "BRASS MOMENTUM",
+              "CRIMSON MOMENTUM",
+              "SUDDEN DEATH TARGETS",
+              "CLUTCH CAPTURE",
+              "RIVAL",
+              "BIGGEST HIT",
+              "MVP",
+              "PRESSURE",
+              "FINAL ASSAULT",
+          ]
+          for needle in required:
+              if needle not in s:
+                  raise SystemExit(f"missing required marker: {needle}")
+          print("patched fatebound.html", html.stat().st_size, "bytes")
+          PY
+
+      - name: Validate scripts and HTML diff
+        shell: bash
+        run: |
+          node <<'JS'
+          const fs=require('fs'),vm=require('vm');
+          const html=fs.readFileSync('fatebound.html','utf8');
+          const re=/<script([^>]*)>([\s\S]*?)<\/script>/gi;
+          let m,i=0,checked=0;
+          while((m=re.exec(html))){
+            i++;
+            const attrs=m[1]||'',code=m[2]||'';
+            if(/type\s*=\s*["']module["']/i.test(attrs)||!code.trim()) continue;
+            new vm.Script(code,{filename:'inline-'+i+'.js'});
+            checked++;
+          }
+          console.log('Parsed '+checked+' classic script blocks successfully');
+          JS
+          git diff --check
+          test "$(git diff --name-only | tr '\n' ' ')" = "fatebound.html " || {
+            echo "Unexpected working-tree changes:"
+            git diff --name-only
+            exit 1
+          }
+
+      - name: Clean temporary implementation files
+        shell: bash
+        run: |
+          git rm .github/workflows/inspect-battle.yml
+          git rm .github/workflows/apply-battle-excitement.yml
+          git rm .github/scripts/battle_excitement.js
+          git add fatebound.html
+          git diff --cached --check
+
+      - name: Commit implementation
+        shell: bash
+        run: |
+          git config user.name "ChatGPT"
+          git config user.email "midblade4295@users.noreply.github.com"
+          git commit -m "Add dynamic battle excitement systems"
+          git push origin HEAD:battle-excitement
