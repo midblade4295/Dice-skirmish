@@ -1,0 +1,32 @@
+name: Inspect battle UI
+on:
+  push:
+    branches: [battle-ui-redesign]
+    paths: [".github/workflows/inspect-battle-ui.yml"]
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect battle UI and excitement systems
+        shell: bash
+        run: |
+          echo "=== SIZE / SHA ==="
+          wc -c fatebound.html
+          sha256sum fatebound.html
+          echo "=== RELEVANT GREP ==="
+          grep -nEi "battleTactical|battle.?alert|momentum|heroMoment|post.?match|highlight|rival|danger|push alert|battleOrder|battle order|hubBattleReturn|function homeHub|function showScreen|function renderHub|function finishMatch|function enterTower|function renderWarPanel|id=\"battle\"|id=\"warmap\"|id=\"end\"|id=\"setup\"|#battle|#warPanel|\.score|\.top|nav" fatebound.html | tail -n 240
+          echo "=== CSS 1-760 ==="
+          sed -n '1,760p' fatebound.html
+          echo "=== APP 600-780 ==="
+          sed -n '600,780p' fatebound.html
+          echo "=== SCREENS 2150-2360 ==="
+          sed -n '2150,2360p' fatebound.html
+          echo "=== MATCH 2480-2660 ==="
+          sed -n '2480,2660p' fatebound.html
+          echo "=== WAR 3120-3260 ==="
+          sed -n '3120,3260p' fatebound.html
+          echo "=== HOME/TRAIN 3235-3420 ==="
+          sed -n '3235,3420p' fatebound.html
+          echo "=== TAIL 3650-3900 ==="
+          sed -n '3650,3900p' fatebound.html
