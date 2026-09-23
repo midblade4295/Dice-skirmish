@@ -1,5 +1,5 @@
 name: Apply battle UI v2
-# rerun after all verified patch parts uploaded
+# rerun after complete verified patch set
 
 on:
   push:
