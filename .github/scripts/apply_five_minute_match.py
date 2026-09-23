@@ -1,0 +1,166 @@
+from pathlib import Path
+import hashlib
+
+p = Path("fatebound.html")
+s = p.read_text(encoding="utf-8")
+expected = "2383c600fa233e5f37c8fc4d22221926852f2cc8dd19478e288c673973d7099a"
+actual = hashlib.sha256(s.encode("utf-8")).hexdigest()
+if actual != expected:
+    raise SystemExit(f"Unexpected starting SHA256: {actual}")
+
+def rep(old, new, label):
+    global s
+    count = s.count(old)
+    if count != 1:
+        raise SystemExit(f"{label}: expected exactly 1 match, found {count}")
+    s = s.replace(old, new, 1)
+
+rep(
+'<section id="warPanel" hidden><div class="war-top"><span id="warPhase">DAILY GUILD WAR</span><b id="warTimer"></b></div><div class="war-controls"><button id="warObjective">Choose a tower ›</button><button id="warRally" hidden>Claim 30 ⚡</button></div><details class="war-rules"><summary>War rules &amp; try the finale</summary><p id="warNote"></p><p id="warStanding"></p><p>Fight all day with normal energy. The last 30 minutes give both guilds ×1.5 attack damage. Claim 30 rally energy once per day during the finale. Dice rewards and shield limits stay the same.</p><p>Daytime score is your average tower points held. Final ownership is worth double. Highest combined score wins; damage breaks ties. Guildmates and opponents are simulated bots. Your energy and gifts are never spent while you are away.</p><p>Every 20 energy spent on war rolls earns a chest with 200 gold and 1 weapon shard. Free rolls do not advance chests. You need 5 paid rolls for end-of-war rewards.</p><button id="warDemo">Try the finale now</button><button id="warFinish" hidden>Finish preview</button><p>Preview skips the wait and keeps normal energy costs and roll rewards. It gives no end-of-war rewards. The rally gift remains limited to once per day.</p></details></section>',
+'<section id="warPanel" hidden><div class="war-top"><span id="warPhase">5-MINUTE GUILD BATTLE</span><b id="warTimer"></b></div><div class="war-controls"><button id="warObjective">Choose a tower ›</button><button id="warRally" hidden>Claim 3 ⚡</button></div><details class="war-rules"><summary>Battle rules</summary><p id="warNote"></p><p id="warStanding"></p><p>Battle lasts 5 minutes. The opening 2 minutes use normal attack power, minutes 2–4 add 15% pressure damage, and the final minute gives ×1.5 attack damage. Claim 3 rally energy once per day during the final minute.</p><p>Control during the first 4 minutes builds your control score. Final tower ownership is worth double. If regulation ends tied, sudden death lasts up to 60 seconds; the first guild to take the lead wins, and damage breaks a tie if overtime expires.</p><p>Every 20 energy spent on battle rolls earns a chest with 200 gold and 1 weapon shard. Free rolls do not advance chests. You need 5 paid rolls for end-of-battle rewards.</p><button id="warDemo" hidden>Preview final minute</button><button id="warFinish" hidden>Finish preview</button></details></section>',
+"war panel copy")
+
+rep(
+'<section class="home-play"><strong>Daily guild war</strong><p id="hubWarText"></p><button class="go big" id="start">Enter guild war</button><small id="homeDuration">Local prototype · simulated guildmates</small></section>',
+'<section class="home-play"><strong>5-minute guild battle</strong><p id="hubWarText"></p><button class="go big" id="start">Start battle</button><small id="homeDuration">Fast battle · simulated guildmates</small></section>',
+"home battle card")
+
+rep(
+"  BOT_ROLLS_PER_MIN: 60, PER_TOWER: 2,     // each guild's bots roll about once a second between them, so a 30-minute war is six times a 5-minute one",
+"  BOT_ROLLS_PER_MIN: 60, PER_TOWER: 2,     // baseline bot pacing; live guild battles scale this by phase",
+"bot pacing comment")
+
+rep(
+"// Continuous war: one energy economy, a boosted finale, and durable roll progress.\nconst WAR_DAY_MS=23.5*3600000, WAR_FINAL_MS=30*60000;",
+"// Five-minute guild battle: 2m opening, 2m pressure, 1m final push, then up to 60s sudden death on a tie.\nconst WAR_MATCH_MS=5*60000, WAR_PRESSURE_MS=2*60000, WAR_FINAL_MS=60000, WAR_OVERTIME_MS=60000;",
+"match constants")
+
+rep(
+"const warBattle=()=>inWar()&&war().phase==='finale';\nfunction finaleBoost(){return warBattle()&&!M.inBoss?1.5:1;}",
+"const warBattle=()=>inWar()&&(war().phase==='finale'||war().phase==='overtime');\nconst warOvertime=()=>inWar()&&war().phase==='overtime';\nfunction finaleBoost(){if(!inWar()||M.inBoss)return 1;if(warBattle())return 1.5;return Date.now()>=(war().pressureAt||Infinity)?1.15:1;}",
+"phase boost helpers")
+
+rep(
+"function newWar(){const now=Date.now();SAVE.war={model:2,id:crypto.randomUUID(),phase:'day',startAt:now,finaleAt:now+WAR_DAY_MS,endAt:now+WAR_DAY_MS+WAR_FINAL_MS,control:[0,0],controlAt:now,controlDuration:0,paid:0,rallyClaimed:false,preview:false};}",
+"function newWar(){const now=Date.now();SAVE.war={model:2,matchVersion:3,id:crypto.randomUUID(),phase:'day',startAt:now,pressureAt:now+WAR_PRESSURE_MS,finaleAt:now+WAR_MATCH_MS-WAR_FINAL_MS,endAt:now+WAR_MATCH_MS,control:[0,0],controlAt:now,controlDuration:0,paid:0,rallyClaimed:false,pressureShown:false,preview:false};}",
+"new battle state")
+
+rep(
+" if(!war()||war().model!==2||war().phase==='complete')newWar();\n const w=war(),snap=w.snapshot;newMatch(30);if(snap)SAVE.stats.matches--;M.campaign=true;",
+" if(!war()||war().model!==2||war().matchVersion!==3||war().phase==='complete')newWar();\n const w=war(),snap=w.snapshot;newMatch(5);if(snap)SAVE.stats.matches--;M.campaign=true;",
+"open battle migration")
+
+rep(
+" feed('Daily war: keep rolling with energy. The last 30 minutes boost attacks ×1.5.','rally');",
+" feed('Five-minute battle: normal opening, pressure rises after 2:00, and the final minute boosts attacks ×1.5.','rally');",
+"opening feed")
+
+rep(
+" bigBanner('FINAL PUSH','×1.5 attack damage · claim your rally energy');saveWar();renderWarPanel();return true;",
+" bigBanner('FINAL MINUTE','×1.5 attack damage · final tower control counts double');saveWar();renderWarPanel();return true;",
+"final banner")
+
+rep(
+" atomicEconomy(()=>{war().rallyClaimed=true;economyDay().rallyEnergy=true;addEnergy(30);saveWar();});\n toast('+30 rally energy — ready when you are','reward');renderWarPanel();return true;",
+" atomicEconomy(()=>{war().rallyClaimed=true;economyDay().rallyEnergy=true;addEnergy(3);saveWar();});\n toast('+3 rally energy — final push ready','reward');renderWarPanel();return true;",
+"rally energy")
+
+rep(
+" while(at<until&&n++<1900){const final=at>=w.finaleAt,step=final?10000:90000,next=Math.min(until,at+step,final?until:w.finaleAt);accrueControl(next);if(next-at>=step){[0,1].forEach(s=>{const bots=side(s).filter(h=>h!==player),h=bots[Math.floor(rng()*bots.length)],t=M.towers[h.tower],d=Math.round(attackPower(h)*(final?1.5:1)*(1+rng()*2));h.damage+=d;M.tally[s].damage+=d;t.dmg[s]+=d;});}at=next;}",
+" while(at<until&&n++<1900){const final=at>=w.finaleAt,pressure=at>=(w.pressureAt||Infinity),step=final?4000:8000,next=Math.min(until,at+step,final?until:w.finaleAt);accrueControl(next);if(next-at>=step){[0,1].forEach(s=>{const bots=side(s).filter(h=>h!==player),h=bots[Math.floor(rng()*bots.length)],t=M.towers[h.tower],boost=final?1.5:pressure?1.15:1,d=Math.round(attackPower(h)*boost*(1+rng()*2));h.damage+=d;M.tally[s].damage+=d;t.dmg[s]+=d;});}at=next;}",
+"offline pacing")
+
+old_tick = """function warTick(){
+ if(!inWar()||M.ended)return;const w=war(),now=Date.now();
+ if(now-(w.seenAt||now)>15000)catchUpWar();
+ accrueControl(now);w.seenAt=Math.min(now,w.endAt);
+ if(w.phase==='day'&&now>=w.finaleAt&&!M.inBoss)beginFinale();
+ M.botRate=warBattle()?0.2:1/90;
+ if(now>=w.endAt){endMatch();return;}
+ if(now-warPaintAt>500){renderWarPanel();warPaintAt=now;}
+ if(now-warSaveAt>3000&&!$('roll').classList.contains('busy')){saveWar();warSaveAt=now;}
+}"""
+new_tick = """function warTick(){
+ if(!inWar()||M.ended)return;const w=war(),now=Date.now();
+ if(now-(w.seenAt||now)>15000)catchUpWar();
+ accrueControl(now);w.seenAt=Math.min(now,w.endAt);
+ if(w.phase==='day'&&now>=(w.pressureAt||Infinity)&&!w.pressureShown){w.pressureShown=true;bigBanner('PRESSURE RISING','attack damage ×1.15');feed('Pressure phase! Attacks now deal 15% more damage.','rally');}
+ if(w.phase==='day'&&now>=w.finaleAt&&!M.inBoss)beginFinale();
+ const pressure=w.phase==='day'&&now>=(w.pressureAt||Infinity);
+ M.botRate=warOvertime()?1.2:warBattle()?1:pressure?0.85:0.65;
+ if(warOvertime()){
+   if(warScore(0)!==warScore(1)){endMatch();return;}
+   if(now>=w.endAt){endMatch();return;}
+ }else if(now>=w.endAt){
+   if(!w.preview&&warScore(0)===warScore(1)){
+     w.phase='overtime';w.overtimeUntil=now+WAR_OVERTIME_MS;w.endAt=w.overtimeUntil;M.endAt=w.endAt;
+     $('clock').classList.add('ot');bigBanner('SUDDEN DEATH','first guild to take the lead wins');SFX.horn();feed('Sudden death! First guild to take the lead wins.','rally');saveWar();renderWarPanel();return;
+   }
+   endMatch();return;
+ }
+ if(now-warPaintAt>500){renderWarPanel();warPaintAt=now;}
+ if(now-warSaveAt>3000&&!$('roll').classList.contains('busy')){saveWar();warSaveAt=now;}
+}"""
+rep(old_tick, new_tick, "war tick")
+
+old_panel = """function renderWarPanel(){
+ if(!inWar())return;const w=war(),final=warBattle(),left=Math.max(0,(final?w.endAt:w.finaleAt)-Date.now());$('warPanel').hidden=M.ended;
+ $('warPhase').textContent=final?'FINAL PUSH · ATTACK ×1.5':'DAILY GUILD WAR';$('warTimer').textContent=left>=3600000?`${Math.floor(left/3600000)}h ${Math.floor(left%3600000/60000)}m`:clock(left);
+ $('warRally').hidden=!final||w.rallyClaimed||!!economyDay().rallyEnergy;
+ $('warDemo').hidden=final;$('warFinish').hidden=!final;
+ const t=warObjective();$('warObjective').textContent=`${towerLeader(t)===0?'Defend':'Take'} Tower ${t.name} · ${t.pts} tower points ›`;$('warObjective').dataset.tower=t.id;
+ $('warNote').textContent=w.preview?'Finale preview · normal roll rewards; no end-of-war rewards':final?'Keep rolling with energy · your daytime progress is kept':'Hold towers now. The final push begins when this timer ends.';
+ $('warStanding').textContent=`Projected result: ${warScore(0)} : ${warScore(1)} · daytime control + final towers ×2`;
+ renderRollTrack();$('bossBtn').hidden=!!TRAIN;if(!$('noEnergy').hidden)renderNoEnergy();
+}"""
+new_panel = """function renderWarPanel(){
+ if(!inWar())return;const w=war(),final=warBattle(),overtime=warOvertime(),pressure=!final&&Date.now()>=(w.pressureAt||Infinity),left=Math.max(0,w.endAt-Date.now());$('warPanel').hidden=M.ended;
+ $('warPhase').textContent=overtime?'SUDDEN DEATH':final?'FINAL MINUTE · ATTACK ×1.5':pressure?'PRESSURE PHASE · ATTACK ×1.15':'5-MINUTE GUILD BATTLE';$('warTimer').textContent=clock(left);
+ $('warRally').hidden=!final||w.rallyClaimed||!!economyDay().rallyEnergy;
+ $('warDemo').hidden=true;$('warFinish').hidden=true;
+ const t=warObjective();$('warObjective').textContent=`${towerLeader(t)===0?'Defend':'Take'} Tower ${t.name} · ${t.pts} tower points ›`;$('warObjective').dataset.tower=t.id;
+ $('warNote').textContent=overtime?'Sudden death · first guild to take the lead wins':final?'Final minute · attacks ×1.5 and final tower ownership counts double':pressure?'Pressure phase · attacks ×1.15 until the final minute':'Opening phase · build tower control before pressure rises at 2:00';
+ $('warStanding').textContent=`Score: ${warScore(0)} : ${warScore(1)} · opening control + final towers ×2`;
+ renderRollTrack();$('bossBtn').hidden=!!TRAIN;if(!$('noEnergy').hidden)renderNoEnergy();
+}"""
+rep(old_panel, new_panel, "war panel renderer")
+
+rep("if(!M)newMatch(30,true);", "if(!M)newMatch(5,true);", "home lobby length")
+rep("newMatch(30,true);M.lobby=false;M.training=true;M.campaign=false;", "newMatch(5,true);M.lobby=false;M.training=true;M.campaign=false;", "training lobby length")
+rep("if(inWar()){saveWar();newMatch(30,true)}begin();", "if(inWar()){saveWar();newMatch(5,true)}begin();", "boss handoff length")
+
+rep(
+" $('start').textContent=started?'Return to battlefield':'Enter guild war';\n $('hubWarText').textContent=started?'Your guild war is in progress. Return when you’re ready.':'Fight for towers throughout the day, with boosted attacks in the final 30 minutes.';",
+" $('start').textContent=started?'Return to battle':'Start 5-minute battle';\n $('hubWarText').textContent=started?'Your 5-minute guild battle is in progress. Jump back in.':'Fight for tower control in a fast 5-minute match. Pressure rises after 2:00 and the final minute boosts attacks.';",
+"home hub copy")
+
+rep(
+"{title:'You’re ready',text:'Visit the hub, check your quests, or enter a guild war. Normal rolls cost energy; training is always free. The final 30-minute push gives ×1.5 attack damage and a claimable rally energy gift.',action:'Finish training'}",
+"{title:'You’re ready',text:'Visit the hub, check your quests, or start a 5-minute guild battle. Normal rolls cost energy; training is always free. Pressure rises after 2:00 and the final minute gives ×1.5 attack damage.',action:'Finish training'}",
+"tutorial final lesson")
+
+rep(
+"{title:'Ready for your first real battle',text:'Training is complete. Finishing restores your real hero and resources, then takes you home. In a real guild war, fight throughout the day and join the boosted final 30-minute push.',target:'nav [data-tab=\"home\"]',finish:true}",
+"{title:'Ready for your first real battle',text:'Training is complete. Finishing restores your real hero and resources, then takes you home. Real guild battles last 5 minutes, with rising pressure and a boosted final minute.',target:'nav [data-tab=\"home\"]',finish:true}",
+"tutorial ready copy")
+
+rep(
+"if(!eligible)$('endSub').textContent=inWar()?(war().preview?'Finale preview complete · normal roll rewards kept':'Make at least 5 paid rolls to earn war rewards.'):'Rewards need 5 paid war rolls per 5 minutes of match length.';else if(inWar())$('endSub').textContent+=` Daytime control + final tower points ×2: ${a}–${b}.`;",
+"if(!eligible)$('endSub').textContent=inWar()?(war().preview?'Finale preview complete · normal roll rewards kept':'Make at least 5 paid rolls to earn battle rewards.'):'Rewards need 5 paid battle rolls per 5 minutes of match length.';else if(inWar())$('endSub').textContent+=` Opening control + final tower points ×2: ${a}–${b}.`;",
+"end screen copy")
+
+p.write_text(s, encoding="utf-8")
+print("patched bytes", p.stat().st_size)
+print("new sha256", hashlib.sha256(p.read_bytes()).hexdigest())
+
+required = [
+    "WAR_MATCH_MS=5*60000",
+    "PRESSURE RISING",
+    "SUDDEN DEATH",
+    "newMatch(5)",
+    "5-MINUTE GUILD BATTLE",
+    "matchVersion:3",
+]
+for needle in required:
+    if needle not in s:
+        raise SystemExit(f"missing required marker: {needle}")
