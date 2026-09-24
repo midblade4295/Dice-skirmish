@@ -5,6 +5,7 @@ import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
@@ -39,7 +40,13 @@ public class MainActivity extends AppCompatActivity {
         webView = new WebView(this);
         webView.setBackgroundColor(Color.parseColor("#0A1015"));
         webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
-        setContentView(webView);
+        webView.setClickable(true);
+        webView.setFocusable(true);
+        webView.setFocusableInTouchMode(true);
+        // Explicit MATCH_PARENT — zero-size / wrap content would eat all taps.
+        setContentView(webView, new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT));
 
         WebSettings s = webView.getSettings();
         s.setJavaScriptEnabled(true);
@@ -61,7 +68,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 view.evaluateJavascript(
-                    "(function(){function kick(){try{if(typeof renderHub==='function')renderHub();if(typeof renderDayLogin==='function')renderDayLogin();if(typeof paintHome==='function')paintHome();}catch(e){}}kick();setTimeout(kick,400);setTimeout(kick,1500);setTimeout(kick,4000);}())",
+                    "(function(){function kick(){try{if(typeof renderHub==='function')renderHub();if(typeof renderDayLogin==='function')renderDayLogin();if(typeof paintHome==='function')paintHome();if(window.__touchUnblock){/* watchdog armed */}var o=document.querySelector('body>#clashSpellWrap,body>#clashSpellCoach');if(o)o.remove();}catch(e){}}kick();setTimeout(kick,400);setTimeout(kick,1500);setTimeout(kick,4000);}())",
                     null);
             }
         });
