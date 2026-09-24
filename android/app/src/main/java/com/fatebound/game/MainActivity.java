@@ -1,6 +1,8 @@
 package com.fatebound.game;
 
 import android.annotation.SuppressLint;
+import android.graphics.Color;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.view.WindowManager;
@@ -22,10 +24,20 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        // Edge-to-edge: content draws behind status/nav bars (immersive hides them).
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+        getWindow().setStatusBarColor(Color.TRANSPARENT);
+        getWindow().setNavigationBarColor(Color.TRANSPARENT);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            WindowManager.LayoutParams lp = getWindow().getAttributes();
+            lp.layoutInDisplayCutoutMode =
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+            getWindow().setAttributes(lp);
+        }
         hideSystemBars();
 
         webView = new WebView(this);
+        webView.setBackgroundColor(Color.parseColor("#0A1015"));
         webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
         setContentView(webView);
 
@@ -59,14 +71,31 @@ public class MainActivity extends AppCompatActivity {
         webView.loadUrl("file:///android_asset/index.html");
     }
 
+    @SuppressLint("deprecation")
     private void hideSystemBars() {
         WindowInsetsControllerCompat c =
                 WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
         if (c != null) {
-            c.hide(WindowInsetsCompat.Type.systemBars());
+            c.hide(WindowInsetsCompat.Type.statusBars());
+            c.hide(WindowInsetsCompat.Type.navigationBars());
             c.setSystemBarsBehavior(
                     WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
         }
+        // Legacy immersive sticky for API 24–29 WebView reliability.
+        View decor = getWindow().getDecorView();
+        decor.setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_FULLSCREEN);
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) hideSystemBars();
     }
 
     @Override
